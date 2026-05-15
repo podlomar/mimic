@@ -1,0 +1,26 @@
+# Virtual environment
+.venv/
+
+# Playground / scratch scripts
+playground/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Raw binary captures and test images at project root
+*.raw
+*.jpg
+*.png
+
+# Build / dist / egg
+dist/
+build/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
