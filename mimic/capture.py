@@ -1,5 +1,6 @@
 import numpy as np
 from collections.abc import Generator
+from multiprocessing import Process, Queue
 
 PIPELINE_DESC = (
     "v4l2src device=/dev/video2 ! videoconvert ! "
@@ -8,7 +9,7 @@ PIPELINE_DESC = (
 )
 
 
-def capture_frames() -> Generator[np.ndarray, None, None]:
+def capture_worker(q: Queue) -> None:
     # GStreamer imports deferred to avoid GLib/EGL conflict with MediaPipe at import time
     import gi
     gi.require_version("Gst", "1.0")
@@ -34,6 +35,8 @@ def capture_frames() -> Generator[np.ndarray, None, None]:
                 continue
             frame = np.frombuffer(map_info.data, dtype=np.uint8).reshape((height, width, 3)).copy()
             buf.unmap(map_info)
-            yield frame
+            
+            timestamp = buf.pts / Gst.SECOND
+            q.put((timestamp, frame))
     finally:
         pipeline.set_state(Gst.State.NULL)
