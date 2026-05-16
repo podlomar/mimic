@@ -1,6 +1,9 @@
 # Virtual environment
 .venv/
 
+# Downloaded ML models (re-downloadable, too large for git)
+models/
+
 # Playground / scratch scripts
 playground/
 

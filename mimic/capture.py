@@ -1,10 +1,5 @@
-import gi
-gi.require_version("Gst", "1.0")
-from gi.repository import Gst
 import numpy as np
 from collections.abc import Generator
-
-Gst.init(None)
 
 PIPELINE_DESC = (
     "v4l2src device=/dev/video2 ! videoconvert ! "
@@ -14,6 +9,12 @@ PIPELINE_DESC = (
 
 
 def capture_frames() -> Generator[np.ndarray, None, None]:
+    # GStreamer imports deferred to avoid GLib/EGL conflict with MediaPipe at import time
+    import gi
+    gi.require_version("Gst", "1.0")
+    from gi.repository import Gst
+
+    Gst.init(None)
     pipeline = Gst.parse_launch(PIPELINE_DESC)
     sink = pipeline.get_by_name("sink")
     pipeline.set_state(Gst.State.PLAYING)
