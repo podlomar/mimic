@@ -2,30 +2,39 @@ import skia
 
 
 class Smiley:
+    eye_blink_left = 0.0
+    eye_blink_right = 0.0
+
     def __init__(self, center: tuple[int, int], radius: int):
         self.center = center
         self.radius = radius
 
     def draw(self, canvas: skia.Canvas) -> None:
-        cx, cy = float(self.center[0]), float(self.center[1])
-        r = float(self.radius)
+        bg_fill = skia.Paint(AntiAlias=True, Color=skia.Color(255, 200, 30))
+        fg_fill = skia.Paint(AntiAlias=True, Color=skia.Color(50, 50, 50))
 
-        fill = skia.Paint(AntiAlias=True, Color=skia.Color(255, 220, 0))
-        stroke = skia.Paint(AntiAlias=True, Color=skia.Color(0, 0, 0),
-                            Style=skia.Paint.kStroke_Style, StrokeWidth=2)
+        stroke = skia.Paint(AntiAlias=True, Color=skia.Color(50, 50, 50),
+                            Style=skia.Paint.kStroke_Style, StrokeWidth=4)
 
-        # Face
-        canvas.drawCircle(cx, cy, r, fill)
-        canvas.drawCircle(cx, cy, r, stroke)
 
-        # Eyes
-        eye_y = cy - r / 4
-        eye_x = r / 3
-        eye_r = max(r / 10, 3)
-        eye_paint = skia.Paint(AntiAlias=True, Color=skia.Color(0, 0, 0))
-        canvas.drawCircle(cx - eye_x, eye_y, eye_r, eye_paint)
-        canvas.drawCircle(cx + eye_x, eye_y, eye_r, eye_paint)
+        mouth_path = skia.Path()
+        mouth_path.moveTo(32, 88)
+        mouth_path.rCubicTo(16, 20, 48, 20, 64, 0)
 
-        # Smile — bottom half of an ellipse
-        smile_rect = skia.Rect.MakeLTRB(cx - r / 2, cy - r / 6, cx + r / 2, cy + r / 2)
-        canvas.drawArc(smile_rect, 0, 180, False, stroke)
+        paint = skia.Paint(
+            AntiAlias=True,
+            Style=skia.Paint.kStroke_Style,
+            StrokeCap=skia.Paint.kRound_Cap,
+            StrokeWidth=6,
+        )
+        
+        canvas.drawCircle(64, 64, 62, bg_fill)
+        canvas.drawCircle(64, 64, 62, stroke)
+
+        if self.eye_blink_left < 0.5:
+            canvas.drawOval(skia.Rect.MakeXYWH(74, 38, 20, 36), fg_fill)
+        
+        if self.eye_blink_right < 0.5:
+            canvas.drawOval(skia.Rect.MakeXYWH(34, 38, 20, 36), fg_fill)
+        
+        canvas.drawPath(mouth_path, paint)

@@ -45,6 +45,9 @@ def run() -> None:
                 )
                 print(values, end="\r", flush=True)
 
+                smiley.eye_blink_left = result.blendshapes.get("eyeBlinkLeft", 0)
+                smiley.eye_blink_right = result.blendshapes.get("eyeBlinkRight", 0)
+
             output = render(frame, surface, smiley, result)
             cv2.imshow("mimic", output)
             if cv2.waitKey(1) & 0xFF == ord("q"):
