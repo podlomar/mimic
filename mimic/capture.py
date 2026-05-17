@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import numpy as np
 from collections.abc import Generator
 from multiprocessing import Process, Queue
@@ -8,8 +10,13 @@ PIPELINE_DESC = (
     "appsink name=sink emit-signals=true max-buffers=1 drop=true"
 )
 
+@dataclass
+class VideoFrame:
+    timestamp: float
+    data: np.ndarray
+    fps: float
 
-def capture_worker(q: Queue) -> None:
+def capture_frames() -> Generator[tuple[float, np.ndarray], None, None]:
     # GStreamer imports deferred to avoid GLib/EGL conflict with MediaPipe at import time
     import gi
     gi.require_version("Gst", "1.0")
@@ -20,11 +27,14 @@ def capture_worker(q: Queue) -> None:
     sink = pipeline.get_by_name("sink")
     pipeline.set_state(Gst.State.PLAYING)
 
+    last_timestamp = 0.0
+
     try:
         while True:
             sample = sink.emit("pull-sample")
             if sample is None:
                 break
+
             buf = sample.get_buffer()
             caps = sample.get_caps()
             structure = caps.get_structure(0)
@@ -37,6 +47,13 @@ def capture_worker(q: Queue) -> None:
             buf.unmap(map_info)
             
             timestamp = buf.pts / Gst.SECOND
-            q.put((timestamp, frame))
+            fps = 1.0 / (timestamp - last_timestamp) if last_timestamp > 0 else 0.0
+            last_timestamp = timestamp
+            yield VideoFrame(timestamp=timestamp, data=frame, fps=fps)
     finally:
         pipeline.set_state(Gst.State.NULL)
+
+def capture_worker(q: Queue) -> None:
+    for video_frame in capture_frames():
+        print(f"Captured frame at {video_frame.timestamp:.2f} seconds, FPS: {video_frame.fps:.1f}")
+        q.put(video_frame)

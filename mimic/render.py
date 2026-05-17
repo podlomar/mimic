@@ -12,7 +12,7 @@ def render_worker(qin: Queue, qout: Queue) -> None:
     print("Render worker started.")
     try:
         while True:
-            timestamp, frame, result = qin.get()
+            video_frame, result = qin.get()
 
             if result is not None:
                 smiley.eye_blink_left = result.blendshapes.get("eyeBlinkLeft", 0)
@@ -23,7 +23,7 @@ def render_worker(qin: Queue, qout: Queue) -> None:
                 smiley.cy = result.nose_y
 
             with surface as canvas:
-                frame_rgba = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
+                frame_rgba = cv2.cvtColor(video_frame.data, cv2.COLOR_BGR2RGBA)
                 bg = skia.Image.fromarray(frame_rgba, colorType=skia.kRGBA_8888_ColorType)
                 canvas.drawImage(bg, 0, 0)
 
@@ -38,6 +38,6 @@ def render_worker(qin: Queue, qout: Queue) -> None:
             snapshot = surface.makeImageSnapshot()
             rgba = snapshot.toarray()
             bgr = cv2.cvtColor(rgba, cv2.COLOR_RGBA2BGR)
-            qout.put((timestamp, bgr))
+            qout.put((video_frame.timestamp, bgr))
     finally:
         pass

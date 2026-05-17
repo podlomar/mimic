@@ -1,3 +1,4 @@
+import os
 import math
 import time
 from dataclasses import dataclass, field
@@ -46,7 +47,15 @@ class FaceLandmarker:
             output_face_blendshapes=True,
             num_faces=1,
         )
-        self._detector = vision.FaceLandmarker.create_from_options(options)
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        old_stderr = os.dup(2)
+        os.dup2(devnull, 2)
+        os.close(devnull)
+        try:
+            self._detector = vision.FaceLandmarker.create_from_options(options)
+        finally:
+            os.dup2(old_stderr, 2)
+            os.close(old_stderr)
         self._start = time.monotonic()
 
     def process(self, frame: np.ndarray, timestamp: float) -> FaceResult | None:
@@ -75,13 +84,13 @@ class FaceLandmarker:
     def close(self) -> None:
         self._detector.close()
 
-def inference_worker(qin: Queue, qout: Queue) -> None:
+def inference_worker(frames_in: Queue, qout: Queue) -> None:
     landmarker = FaceLandmarker()
     print("Inference worker started.")
     try:
         while True:
-            timestamp, frame = qin.get()
-            result = landmarker.process(frame, timestamp)
-            qout.put((timestamp, frame, result))
+            video_frame = frames_in.get()
+            result = landmarker.process(video_frame.data, video_frame.timestamp)
+            qout.put((video_frame, result))
     finally:
         landmarker.close()
