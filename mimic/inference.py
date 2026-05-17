@@ -1,3 +1,4 @@
+import math
 import time
 from dataclasses import dataclass, field
 
@@ -11,11 +12,30 @@ from multiprocessing import Queue
 
 MODEL_PATH = "models/face_landmarker.task"
 
+def head_tilt(landmarks) -> float:
+    """Returns head roll in degrees. Positive = tilted right."""
+    left  = landmarks[33]   # left eye outer corner
+    right = landmarks[263]  # right eye outer corner
+    dx = right.x - left.x
+    dy = right.y - left.y
+    return math.degrees(math.atan2(dy, dx))
+
+def face_scale(landmarks, w: int, h: int) -> float:
+    top    = landmarks[10]   # forehead
+    bottom = landmarks[152]  # chin
+    dx = (bottom.x - top.x) * w
+    dy = (bottom.y - top.y) * h
+    return math.hypot(dx, dy) / 120
+
 
 @dataclass
 class FaceResult:
-    landmarks: list  # list of NormalizedLandmark (x, y, z all in 0-1 range)
-    blendshapes: dict[str, float] = field(default_factory=dict)
+    landmarks: list
+    blendshapes: dict[str, float]
+    tilt: float
+    scale: float
+    nose_x: int
+    nose_y: int
 
 class FaceLandmarker:
     def __init__(self, model_path: str = MODEL_PATH):
@@ -44,7 +64,13 @@ class FaceLandmarker:
             for category in result.face_blendshapes[0]:
                 blendshapes[category.category_name] = category.score
 
-        return FaceResult(landmarks=result.face_landmarks[0], blendshapes=blendshapes)
+        h, w = frame.shape[:2]
+        lms = result.face_landmarks[0]
+        tilt = head_tilt(lms)
+        scale = face_scale(lms, w, h)
+        nose_x = int(lms[168].x * w)
+        nose_y = int(lms[168].y * h)
+        return FaceResult(landmarks=lms, blendshapes=blendshapes, tilt=tilt, scale=scale, nose_x=nose_x, nose_y=nose_y)
 
     def close(self) -> None:
         self._detector.close()

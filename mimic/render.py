@@ -8,7 +8,7 @@ KEY_BLENDSHAPES = ("jawOpen", "eyeBlinkLeft", "eyeBlinkRight", "mouthSmileLeft",
 
 def render_worker(qin: Queue, qout: Queue) -> None:
     surface = skia.Surface(640, 480)
-    smiley = Smiley(center=(320, 240), radius=100)
+    smiley = Smiley(cx=320, cy=240)
     print("Render worker started.")
     try:
         while True:
@@ -17,6 +17,10 @@ def render_worker(qin: Queue, qout: Queue) -> None:
             if result is not None:
                 smiley.eye_blink_left = result.blendshapes.get("eyeBlinkLeft", 0)
                 smiley.eye_blink_right = result.blendshapes.get("eyeBlinkRight", 0)
+                smiley.tilt = result.tilt
+                smiley.scale = result.scale
+                smiley.cx = result.nose_x
+                smiley.cy = result.nose_y
 
             with surface as canvas:
                 frame_rgba = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
