@@ -1,3 +1,4 @@
+import time
 import cv2
 from mimic.render import render_worker
 from mimic.capture import capture_worker
@@ -17,11 +18,37 @@ if __name__ == "__main__":
     capture_process.start()
     inference_process.start()
     render_process.start()
-    
+
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    displayed_stats = ["FPS: --", "Inference: -- ms", "Render: -- ms"]
+    samples = []
+    last_update = time.monotonic()
+
     while True:
-        timestamp, frame = output_queue.get()
-        print(f"Timestamp: {timestamp:.2f} seconds")
-        cv2.imshow("Webcam", frame)
+        video_frame = output_queue.get()
+
+        samples.append((video_frame.fps, video_frame.inference_phase, video_frame.render_phase))
+        now = time.monotonic()
+        if now - last_update >= 0.5:
+            n = len(samples)
+            avg_fps = sum(s[0] for s in samples) / n
+            avg_inf = sum(s[1] for s in samples) / n
+            avg_rnd = sum(s[2] for s in samples) / n
+            displayed_stats = [
+                f"FPS: {avg_fps:.1f}",
+                f"Inference: {avg_inf:.0f} ms",
+                f"Render: {avg_rnd:.0f} ms",
+            ]
+            samples.clear()
+            last_update = now
+
+        y = 30
+        for text in displayed_stats:
+            cv2.putText(video_frame.data, text, (10, y), font, 0.6, (0, 0, 0), 2, cv2.LINE_AA)
+            cv2.putText(video_frame.data, text, (10, y), font, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
+            y += 25
+
+        cv2.imshow("Webcam", video_frame.data)
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
     

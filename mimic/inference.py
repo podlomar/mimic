@@ -4,6 +4,7 @@ import time
 from dataclasses import dataclass, field
 
 import cv2
+from mimic.capture import FaceResult, get_timestamp
 import numpy as np
 import mediapipe as mp
 from mediapipe.tasks import python
@@ -28,16 +29,6 @@ def face_scale(landmarks, w: int, h: int) -> float:
     dy = (bottom.y - top.y) * h
     return math.hypot(dx, dy) / 120
 
-
-@dataclass
-class FaceResult:
-    landmarks: list
-    blendshapes: dict[str, float]
-    tilt: float
-    scale: float
-    nose_x: int
-    nose_y: int
-
 class FaceLandmarker:
     def __init__(self, model_path: str = MODEL_PATH):
         base_options = python.BaseOptions(model_asset_path=model_path)
@@ -58,12 +49,11 @@ class FaceLandmarker:
             os.close(old_stderr)
         self._start = time.monotonic()
 
-    def process(self, frame: np.ndarray, timestamp: float) -> FaceResult | None:
+    def process(self, frame: np.ndarray, timestamp: int) -> FaceResult | None:
         """Process a BGR frame; returns landmarks + blendshapes or None if no face found."""
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
-        timestamp_ms = int(timestamp * 1000)
-        result = self._detector.detect_for_video(mp_image, timestamp_ms)
+        result = self._detector.detect_for_video(mp_image, timestamp)
 
         if not result.face_landmarks:
             return None
@@ -90,7 +80,10 @@ def inference_worker(frames_in: Queue, qout: Queue) -> None:
     try:
         while True:
             video_frame = frames_in.get()
-            result = landmarker.process(video_frame.data, video_frame.timestamp)
-            qout.put((video_frame, result))
+            result = landmarker.process(video_frame.data, video_frame.captured_stamp)
+            timestamp = get_timestamp()
+            video_frame.inference_phase = timestamp - video_frame.captured_stamp
+            video_frame.face = result
+            qout.put(video_frame)
     finally:
         landmarker.close()
